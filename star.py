@@ -171,7 +171,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text("Noto‘g‘ri ❌ Qaytadan urin")
 
-
+except Exception as e:
+    print("words.json error:", e)
+    user_words = {}
 # ---------------- MAIN ----------------
 load_words()
 
