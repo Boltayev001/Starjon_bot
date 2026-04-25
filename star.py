@@ -5,10 +5,10 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     ContextTypes, filters
 )
-
+print("BOT STARTED")
 TOKEN = os.getenv("BOT_TOKEN")
 FILE = "words.json"
-
+print("TOKEN:", TOKEN)
 user_words = {}
 current = {}
 
