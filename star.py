@@ -1,11 +1,12 @@
 import json
+import os
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     ContextTypes, filters
 )
 
-TOKEN = "8285361555:AAEC1rMpMzt_TSfmgcgNZUTH62pGqAtWHuw"
+TOKEN = os.getnv("BOT_TOKEN")
 FILE = "words.json"
 
 # user_id -> [[uz, en]]
