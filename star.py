@@ -6,7 +6,7 @@ from telegram.ext import (
     ContextTypes, filters
 )
 
-TOKEN = os.getnv("BOT_TOKEN")
+TOKEN = os.getenv("BOT_TOKEN")
 FILE = "words.json"
 
 # user_id -> [[uz, en]]
