@@ -9,10 +9,7 @@ from telegram.ext import (
 TOKEN = os.getenv("BOT_TOKEN")
 FILE = "words.json"
 
-# user_id -> [[uz, en]]
 user_words = {}
-
-# user_id -> current index
 current = {}
 
 
@@ -23,13 +20,13 @@ def load_words():
         with open(FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-            # eski format bo‘lsa tozalab yuboramiz
             if isinstance(data, dict):
                 user_words = data
             else:
                 user_words = {}
 
-    except:
+    except Exception as e:
+        print("words.json error:", e)
         user_words = {}
 
 
@@ -171,11 +168,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text("Noto‘g‘ri ❌ Qaytadan urin")
 
-except Exception as e:
-    print("words.json error:", e)
-    user_words = {}
+
 # ---------------- MAIN ----------------
 load_words()
+
+if not TOKEN:
+    raise ValueError("BOT_TOKEN topilmadi! Render Environment Variables ni tekshir.")
 
 app = ApplicationBuilder().token(TOKEN).build()
 
