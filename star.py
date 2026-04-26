@@ -6,7 +6,7 @@ from telegram.ext import (
     ContextTypes, filters
 )
 
-TOKEN = "YOUR_BOT_TOKEN_HERE"
+TOKEN = "8285361555:AAEC1rMpMzt_TSfmgcgNZUTH62pGqAtWHuw"
 
 # -------- DATABASE --------
 conn = sqlite3.connect("bot.db", check_same_thread=False)
