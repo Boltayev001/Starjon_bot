@@ -141,13 +141,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # ---------------- FIRST WRONG ----------------
         if not retry:
             context.user_data[retry_key] = True
-            await update.message.reply_text("Noto‘g‘ri ❌ Yana bir marta urinib ko‘r")
+            await update.message.reply_text("Xato yoki yozilishda xatolik bor❌ Yana bir marta urinib ko‘r")
             return
 
         # ---------------- SECOND WRONG ----------------
         context.user_data[retry_key] = False
 
-        await update.message.reply_text(f"❌ To‘g‘ri javob: {correct}")
+        await update.message.reply_text(f"xato yoki yozilishda xatolik bor❌ To‘g‘ri javob: {correct}")
 
         pos += 1
         current[user_id] = pos
