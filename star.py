@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS words (
 conn.commit()
 
 
+# -------- NORMALIZE (🔥 FIX) --------
+def normalize(text):
+    return " ".join(text.lower().strip().split())
+
+
 # -------- HELPERS --------
 def add_word(uz, en):
     cursor.execute("INSERT INTO words (uz, en) VALUES (?, ?)", (uz, en))
@@ -44,8 +49,7 @@ quiz_order = {}
 # -------- START --------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Salom 👋\n\n"
-        "Quizni boshlash uchun /quiz ni bosing 🎯"
+        "Salom 👋\n\nQuizni boshlash uchun /quiz ni bosing 🎯"
     )
 
 
@@ -85,7 +89,6 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # -------- REMOVE --------
 async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     clear_words()
-
     current.clear()
     quiz_order.clear()
     context.user_data.clear()
@@ -93,12 +96,12 @@ async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Barcha so‘zlar o‘chirildi 🗑️")
 
 
-# -------- MESSAGE HANDLER --------
+# -------- MESSAGE --------
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = str(update.effective_user.id)
 
-    # --- ADD WORDS ---
+    # --- ADD ---
     if context.user_data.get("adding"):
         for line in text.split("\n"):
             if "-" in line:
@@ -109,7 +112,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("So‘zlar saqlandi ✅")
         return
 
-    # --- QUIZ MODE ---
+    # --- QUIZ ---
     if context.user_data.get("quiz"):
         words = get_all_words()
         order = quiz_order.get(user_id, [])
@@ -118,18 +121,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("So‘z yo‘q 😕")
             return
 
-        user_answer = text.lower().strip()
-        correct = context.user_data["answer"].lower()
+        user_answer = normalize(text)
+        correct_raw = context.user_data["answer"]
+        correct = normalize(correct_raw)
 
         retry_key = f"retry_{user_id}"
         retry = context.user_data.get(retry_key, False)
 
         pos = current.get(user_id, 0)
 
-        # ---------- CORRECT ----------
+        # ✅ CORRECT
         if user_answer == correct:
             context.user_data[retry_key] = False
-
             pos += 1
             current[user_id] = pos
 
@@ -149,16 +152,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Keyingi:\n\n{uz}")
             return
 
-        # ---------- FIRST WRONG ----------
+        # ❌ FIRST WRONG
         if not retry:
             context.user_data[retry_key] = True
-            await update.message.reply_text("Xato yoki imloviy kamchilik bor❌ Yana bir marta urinib ko‘r")
+            await update.message.reply_text(
+                "Xato yoki imloviy kamchilik bo'lishi mumkin❌ Yana bir marta urinib ko‘r"
+            )
             return
 
-        # ---------- SECOND WRONG ----------
+        # ❌ SECOND WRONG
         context.user_data[retry_key] = False
 
-        await update.message.reply_text(f"Xato yoki imloviy kamchilik bor❌ To‘g‘ri javob: {correct}")
+        await update.message.reply_text(
+            f"Xato yoki imloviy kamchilik bo'lishi mumkin❌ To‘g‘ri javob: {correct_raw}"
+        )
 
         pos += 1
         current[user_id] = pos
