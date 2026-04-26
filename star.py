@@ -9,7 +9,7 @@ from telegram.ext import (
 TOKEN = "8285361555:AAEC1rMpMzt_TSfmgcgNZUTH62pGqAtWHuw"
 FILE = "words.json"
 
-words = []  # 🔥 umumiy so‘zlar
+words = []
 current = {}
 quiz_order = {}
 
@@ -20,10 +20,7 @@ def load_words():
     try:
         with open(FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            if isinstance(data, list):
-                words = data
-            else:
-                words = []
+            words = data if isinstance(data, list) else []
     except:
         words = []
 
@@ -36,14 +33,9 @@ def save_words():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Salom 👋\n\n"
-        "testni boshlash uchun /quiz tugmasini bosing"
+        "Quizni boshlash uchun /quiz ni bosing 🎯"
     )
 
-
-async def idle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Testni boshlash uchun /quiz ni bosing 🎯"
-    )
 
 # -------- MAKE --------
 async def make(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -88,12 +80,12 @@ async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Barcha so‘zlar o‘chirildi 🗑️")
 
 
-# -------- MESSAGE --------
+# -------- MESSAGE HANDLER --------
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = str(update.effective_user.id)
 
-    # --- MAKE ---
+    # --- ADD WORDS ---
     if context.user_data.get("adding"):
         for line in text.split("\n"):
             if "-" in line:
@@ -106,7 +98,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("So‘zlar saqlandi ✅")
         return
 
-    # --- QUIZ ---
+    # --- QUIZ MODE ---
     if context.user_data.get("quiz"):
         order = quiz_order.get(user_id, [])
 
@@ -114,7 +106,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("So‘z yo‘q 😕")
             return
 
-        user_answer = text.lower()
+        user_answer = text.lower().strip()
         correct = context.user_data["answer"].lower()
 
         pos = current.get(user_id, 0)
@@ -137,7 +129,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         else:
             await update.message.reply_text("Noto‘g‘ri ❌ Yana urining")
-    await idle_message(update, context)
+
+        return  # 🔥 MUHIM
+
+    # --- DEFAULT ---
+    await update.message.reply_text(
+        "Testni boshlash uchun /quiz ni bosing 🎯"
+    )
+
 
 # -------- MAIN --------
 load_words()
