@@ -1,32 +1,44 @@
-import json
 import random
+import sqlite3
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     ContextTypes, filters
 )
 
-TOKEN = "8285361555:AAEC1rMpMzt_TSfmgcgNZUTH62pGqAtWHuw"
-FILE = "words.json"
+TOKEN = "YOUR_BOT_TOKEN_HERE"
 
-words = []
+# -------- DATABASE --------
+conn = sqlite3.connect("bot.db", check_same_thread=False)
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS words (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uz TEXT,
+    en TEXT
+)
+""")
+conn.commit()
+
+
+# -------- HELPERS --------
+def add_word(uz, en):
+    cursor.execute("INSERT INTO words (uz, en) VALUES (?, ?)", (uz, en))
+    conn.commit()
+
+def get_all_words():
+    cursor.execute("SELECT uz, en FROM words")
+    return cursor.fetchall()
+
+def clear_words():
+    cursor.execute("DELETE FROM words")
+    conn.commit()
+
+
+# -------- STATE --------
 current = {}
 quiz_order = {}
-
-
-# -------- LOAD / SAVE --------
-def load_words():
-    global words
-    try:
-        with open(FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            words = data if isinstance(data, list) else []
-    except:
-        words = []
-
-def save_words():
-    with open(FILE, "w", encoding="utf-8") as f:
-        json.dump(words, f, ensure_ascii=False)
 
 
 # -------- START --------
@@ -48,6 +60,7 @@ async def make(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # -------- QUIZ --------
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
+    words = get_all_words()
 
     if not words:
         await update.message.reply_text("Hali so‘z yo‘q 😕")
@@ -71,8 +84,7 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # -------- REMOVE --------
 async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    words.clear()
-    save_words()
+    clear_words()
 
     current.clear()
     quiz_order.clear()
@@ -91,16 +103,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for line in text.split("\n"):
             if "-" in line:
                 uz, en = line.split("-", 1)
-                words.append((uz.strip(), en.strip()))
+                add_word(uz.strip(), en.strip())
 
-        save_words()
         context.user_data["adding"] = False
-
         await update.message.reply_text("So‘zlar saqlandi ✅")
         return
 
     # --- QUIZ MODE ---
     if context.user_data.get("quiz"):
+        words = get_all_words()
         order = quiz_order.get(user_id, [])
 
         if not words or not order:
@@ -115,7 +126,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         pos = current.get(user_id, 0)
 
-        # ---------------- CORRECT ----------------
+        # ---------- CORRECT ----------
         if user_answer == correct:
             context.user_data[retry_key] = False
 
@@ -138,16 +149,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Keyingi:\n\n{uz}")
             return
 
-        # ---------------- FIRST WRONG ----------------
+        # ---------- FIRST WRONG ----------
         if not retry:
             context.user_data[retry_key] = True
-            await update.message.reply_text("Xato yoki yozilishda xatolik bor❌ Yana bir marta urinib ko‘r")
+            await update.message.reply_text("Noto‘g‘ri ❌ Yana bir marta urinib ko‘r")
             return
 
-        # ---------------- SECOND WRONG ----------------
+        # ---------- SECOND WRONG ----------
         context.user_data[retry_key] = False
 
-        await update.message.reply_text(f"xato yoki yozilishda xatolik bor❌ To‘g‘ri javob: {correct}")
+        await update.message.reply_text(f"❌ To‘g‘ri javob: {correct}")
 
         pos += 1
         current[user_id] = pos
@@ -174,8 +185,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # -------- MAIN --------
-load_words()
-
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
