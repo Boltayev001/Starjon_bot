@@ -64,6 +64,7 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["quiz"] = True
     context.user_data["answer"] = en
+    context.user_data[f"retry_{user_id}"] = False
 
     await update.message.reply_text(f"Tarjima qil:\n\n{uz}")
 
@@ -109,14 +110,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_answer = text.lower().strip()
         correct = context.user_data["answer"].lower()
 
+        retry_key = f"retry_{user_id}"
+        retry = context.user_data.get(retry_key, False)
+
         pos = current.get(user_id, 0)
 
+        # ---------------- CORRECT ----------------
         if user_answer == correct:
+            context.user_data[retry_key] = False
+
             pos += 1
             current[user_id] = pos
 
             if pos >= len(order):
-                await update.message.reply_text("Tugadi 🎉 Sen uddalading!")
+                await update.message.reply_text(
+                    "Tugadi 🎉 Sen uddalading!\n\n"
+                    "Testni qayta boshlash uchun /quiz ni bosing 🎯"
+                )
                 context.user_data["quiz"] = False
                 return
 
@@ -126,11 +136,36 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await update.message.reply_text("To‘g‘ri ✅")
             await update.message.reply_text(f"Keyingi:\n\n{uz}")
+            return
 
-        else:
-            await update.message.reply_text("Noto‘g‘ri ❌ Yana urining")
+        # ---------------- FIRST WRONG ----------------
+        if not retry:
+            context.user_data[retry_key] = True
+            await update.message.reply_text("Noto‘g‘ri ❌ Yana bir marta urinib ko‘r")
+            return
 
-        return  # 🔥 MUHIM
+        # ---------------- SECOND WRONG ----------------
+        context.user_data[retry_key] = False
+
+        await update.message.reply_text(f"❌ To‘g‘ri javob: {correct}")
+
+        pos += 1
+        current[user_id] = pos
+
+        if pos >= len(order):
+            await update.message.reply_text(
+                "Tugadi 🎉\n\n"
+                "Testni qayta boshlash uchun /quiz ni bosing 🎯"
+            )
+            context.user_data["quiz"] = False
+            return
+
+        index = order[pos]
+        uz, en = words[index]
+        context.user_data["answer"] = en
+
+        await update.message.reply_text(f"Keyingi:\n\n{uz}")
+        return
 
     # --- DEFAULT ---
     await update.message.reply_text(
