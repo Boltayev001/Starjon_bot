@@ -1,71 +1,74 @@
 import json
-import os
+import random
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     ContextTypes, filters
 )
-print("BOT STARTED")
-TOKEN = os.getenv("BOT_TOKEN")
+
+TOKEN = "8285361555:AAEC1rMpMzt_TSfmgcgNZUTH62pGqAtWHuw"
 FILE = "words.json"
-print("TOKEN:", TOKEN)
-user_words = {}
+
+words = []  # 🔥 umumiy so‘zlar
 current = {}
+quiz_order = {}
 
 
-# ---------------- LOAD / SAVE ----------------
+# -------- LOAD / SAVE --------
 def load_words():
-    global user_words
+    global words
     try:
         with open(FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-
-            if isinstance(data, dict):
-                user_words = data
+            if isinstance(data, list):
+                words = data
             else:
-                user_words = {}
+                words = []
+    except:
+        words = []
 
-    except Exception as e:
-        print("words.json error:", e)
-        user_words = {}
-
-
-def save_words_to_file():
+def save_words():
     with open(FILE, "w", encoding="utf-8") as f:
-        json.dump(user_words, f, ensure_ascii=False)
+        json.dump(words, f, ensure_ascii=False)
 
 
-# ---------------- START ----------------
+# -------- START --------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Salom 👋\n\n"
-        "/add - so‘z qo‘shish\n"
-        "/quiz - test\n"
-        "/list - so‘zlar\n"
-        "/stats - statistika\n"
-        "/remove - hammasini o‘chirish"
+        "testni boshlash uchun /quiz tugmasini bosing"
     )
 
 
-# ---------------- ADD ----------------
-async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def idle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Testni boshlash uchun /quiz ni bosing 🎯"
+    )
+
+# -------- MAKE --------
+async def make(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "So‘zlarni yubor:\n\nolma-apple\nkitob-book"
     )
     context.user_data["adding"] = True
 
 
-# ---------------- QUIZ ----------------
+# -------- QUIZ --------
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    words_list = user_words.get(user_id, [])
 
-    if not words_list:
-        await update.message.reply_text("Avval so‘z qo‘sh /add 😕")
+    if not words:
+        await update.message.reply_text("Hali so‘z yo‘q 😕")
         return
 
+    order = list(range(len(words)))
+    random.shuffle(order)
+
+    quiz_order[user_id] = order
     current[user_id] = 0
-    uz, en = words_list[0]
+
+    index = order[0]
+    uz, en = words[index]
 
     context.user_data["quiz"] = True
     context.user_data["answer"] = en
@@ -73,116 +76,78 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Tarjima qil:\n\n{uz}")
 
 
-# ---------------- REMOVE ----------------
+# -------- REMOVE --------
 async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
+    words.clear()
+    save_words()
 
-    user_words[user_id] = []
-    current[user_id] = 0
-
-    save_words_to_file()
+    current.clear()
+    quiz_order.clear()
     context.user_data.clear()
 
-    await update.message.reply_text("Sizning so‘zlaringiz o‘chirildi 🗑️")
+    await update.message.reply_text("Barcha so‘zlar o‘chirildi 🗑️")
 
 
-# ---------------- LIST ----------------
-async def list_words(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    words_list = user_words.get(user_id, [])
-
-    if not words_list:
-        await update.message.reply_text("So‘z yo‘q 😕")
-        return
-
-    text = "📚 So‘zlar:\n\n"
-    for i, (uz, en) in enumerate(words_list, 1):
-        text += f"{i}. {uz} - {en}\n"
-
-    await update.message.reply_text(text)
-
-
-# ---------------- STATS ----------------
-async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    total = len(user_words.get(user_id, []))
-
-    await update.message.reply_text(
-        f"📊 Statistika:\n\n🔢 Jami so‘zlar: {total}"
-    )
-
-
-# ---------------- MESSAGE HANDLER ----------------
+# -------- MESSAGE --------
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = str(update.effective_user.id)
 
-    # -------- ADD --------
+    # --- MAKE ---
     if context.user_data.get("adding"):
-        if user_id not in user_words:
-            user_words[user_id] = []
-
-        lines = text.split("\n")
-
-        for line in lines:
+        for line in text.split("\n"):
             if "-" in line:
                 uz, en = line.split("-", 1)
-                user_words[user_id].append((uz.strip(), en.strip()))
+                words.append((uz.strip(), en.strip()))
 
-        save_words_to_file()
+        save_words()
         context.user_data["adding"] = False
 
-        await update.message.reply_text(
-            f"{len(user_words[user_id])} ta so‘z saqlandi ✅"
-        )
+        await update.message.reply_text("So‘zlar saqlandi ✅")
         return
 
-    # -------- QUIZ --------
+    # --- QUIZ ---
     if context.user_data.get("quiz"):
-        words_list = user_words.get(user_id, [])
+        order = quiz_order.get(user_id, [])
 
-        if not words_list:
+        if not words or not order:
             await update.message.reply_text("So‘z yo‘q 😕")
             return
 
         user_answer = text.lower()
         correct = context.user_data["answer"].lower()
 
-        index = current.get(user_id, 0)
+        pos = current.get(user_id, 0)
 
         if user_answer == correct:
-            index += 1
-            current[user_id] = index
+            pos += 1
+            current[user_id] = pos
 
-            if index >= len(words_list):
-                await update.message.reply_text("Tugadi 🎉")
+            if pos >= len(order):
+                await update.message.reply_text("Tugadi 🎉 Sen uddalading!")
                 context.user_data["quiz"] = False
                 return
 
-            uz, en = words_list[index]
+            index = order[pos]
+            uz, en = words[index]
             context.user_data["answer"] = en
 
             await update.message.reply_text("To‘g‘ri ✅")
             await update.message.reply_text(f"Keyingi:\n\n{uz}")
 
         else:
-            await update.message.reply_text("Noto‘g‘ri ❌ Qaytadan urin")
+            await update.message.reply_text("Noto‘g‘ri ❌ Yana urining")
+    await idle_message(update, context)
 
-
-# ---------------- MAIN ----------------
+# -------- MAIN --------
 load_words()
-
-if not TOKEN:
-    raise ValueError("BOT_TOKEN topilmadi! Render Environment Variables ni tekshir.")
 
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("add", add))
+app.add_handler(CommandHandler("make", make))
 app.add_handler(CommandHandler("quiz", quiz))
 app.add_handler(CommandHandler("remove", remove))
-app.add_handler(CommandHandler("list", list_words))
-app.add_handler(CommandHandler("stats", stats))
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
